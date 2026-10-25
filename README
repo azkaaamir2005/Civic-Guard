@@ -1,0 +1,246 @@
+<div align="center">
+
+# 🛡️ CivicGuard
+
+**AI-powered civic surveillance and agentic telemetric monitoring system.**
+
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![AWS EC2](https://img.shields.io/badge/AWS-EC2-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com/ec2/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+
+[Overview](#-overview) •
+[Features](#-system-architecture--key-features) •
+[Tech Stack](#-tech-stack--prerequisites) •
+[Local Setup](#-local-setup--installation) •
+[AWS Deployment](#-aws-ec2-deployment-guide) •
+[Configuration](#-environment-variables) •
+[Contributing](#-license--contributing)
+
+</div>
+
+---
+
+## 📖 Overview
+
+Cities generate enormous volumes of visual data from cameras, drones, and citizen-submitted media, but most of it is never reviewed. Manual monitoring is slow, expensive, and error-prone, so incidents such as road hazards, infrastructure damage, and public safety events are often noticed late or not at all.
+
+**CivicGuard** closes that gap by combining lightweight computer vision with multimodal AI reasoning:
+
+1. **Ingest:** video streams and images are processed frame by frame with OpenCV.
+2. **Understand:** **Google Gemini 2.5 Flash** analyzes frames and produces natural-language descriptions and incident reports.
+3. **Act:** agentic workflows, built on the **Model Context Protocol (MCP)**, call tools in a standardized way to triage, log, and escalate findings.
+4. **Visualize:** a **Streamlit** dashboard surfaces alerts and telemetry in real time.
+
+The result is a lean, cloud-ready monitoring pipeline that runs on a single `t3.micro` instance.
+
+---
+
+## 🏗️ System Architecture & Key Features
+
+```text
+┌──────────────┐     ┌────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│ Video / Image│ ──▶ │ OpenCV         │ ──▶ │ Gemini 2.5 Flash │ ──▶ │ MCP Agent Tools  │
+│ Input        │     │ (headless)     │     │ Scene Analysis   │     │ (tool-calling)   │
+└──────────────┘     └────────────────┘     └──────────────────┘     └────────┬─────────┘
+                                                                               │
+                                                                               ▼
+                                                                    ┌──────────────────┐
+                                                                    │ Streamlit        │
+                                                                    │ Dashboard :8501  │
+                                                                    └──────────────────┘
+```
+
+| Feature | Description | Powered By |
+|---|---|---|
+| 🎥 **Computer Vision Processing** | Real-time and frame-by-frame analysis of video streams and images, optimized for edge and headless environments | `opencv-python-headless` |
+| 🧠 **AI Telemetry & Analysis** | Incident detection, automated reporting, and natural-language contextualization of civic scenes | Google Gemini 2.5 Flash (`google-genai`) |
+| 🔌 **Agentic Interoperability** | Standardized, tool-calling agentic workflows that plug into any MCP-compatible tooling | Model Context Protocol (`mcp`) |
+| 📊 **Interactive Dashboard** | Clean web UI for navigation, data input, and real-time alert visualization | Streamlit |
+| ☁️ **Cloud Ready** | Lightweight deployment on EC2 (Amazon Linux 2023, Python 3.11), container-friendly | AWS EC2, Boto3 |
+
+---
+
+## 🧰 Tech Stack & Prerequisites
+
+### Core Technologies
+
+| Layer | Technology |
+|---|---|
+| Language | Python 3.11 |
+| Web UI | Streamlit |
+| Computer Vision | OpenCV (`opencv-python-headless`) |
+| LLM / Vision AI | Google Gemini 2.5 Flash (`google-genai`) |
+| Agent Protocol | Model Context Protocol (`mcp`) |
+| Cloud SDK | Boto3 (AWS SDK for Python) |
+| Infrastructure | AWS EC2 (`t3.micro` / Graviton3), Amazon Linux 2023 |
+
+### Prerequisites
+
+- **Python 3.11+**
+- **Git**
+- A **Google Gemini API key** ([get one here](https://aistudio.google.com/app/apikey))
+- An **AWS account** with an EC2 instance (for cloud deployment)
+- *(Optional)* AWS credentials configured for Boto3 features
+
+---
+
+## 💻 Local Setup & Installation
+
+**1. Clone the repository**
+
+```bash
+git clone https://github.com/azkaaamir2005/Civic-Guard.git
+cd Civic-Guard
+```
+
+**2. Create and activate a virtual environment**
+
+```bash
+python3.11 -m venv venv
+
+# macOS / Linux
+source venv/bin/activate
+
+# Windows (PowerShell)
+.\venv\Scripts\Activate.ps1
+```
+
+**3. Install dependencies**
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+**4. Configure environment variables**
+
+Create a `.env` file in the project root (see [Environment Variables](#-environment-variables)).
+
+**5. Run the app**
+
+```bash
+streamlit run app.py
+```
+
+Open **http://localhost:8501** in your browser.
+
+---
+
+## ☁️ AWS EC2 Deployment Guide
+
+Tested on **Amazon Linux 2023** with a `t3.micro` (x86_64) or Graviton3 (arm64) instance.
+
+**1. Install system packages**
+
+```bash
+sudo dnf update -y
+sudo dnf install -y git python3.11 python3.11-pip
+```
+
+**2. Clone the repository and install dependencies**
+
+```bash
+git clone https://github.com/azkaaamir2005/Civic-Guard.git
+cd Civic-Guard
+python3.11 -m pip install -r requirements.txt
+```
+
+**3. Configure environment variables**
+
+```bash
+nano .env   # see the Environment Variables section below
+```
+
+**4. Launch CivicGuard**
+
+```bash
+python3.11 -m streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+```
+
+**5. Open the port in your Security Group**
+
+> ⚠️ **Security Group requirement:** add an **inbound rule** allowing **TCP port `8501`** so the dashboard is reachable.
+>
+> | Type | Protocol | Port | Source |
+> |---|---|---|---|
+> | Custom TCP | TCP | 8501 | Your IP (recommended) |
+>
+> Avoid `0.0.0.0/0` in production. Restrict access to trusted IPs or place the app behind a reverse proxy with authentication.
+
+Then visit `http://<EC2_PUBLIC_IP>:8501`.
+
+**Optional: keep it running after you log out**
+
+```bash
+nohup python3.11 -m streamlit run app.py \
+  --server.port 8501 --server.address 0.0.0.0 > civicguard.log 2>&1 &
+```
+
+---
+
+## 🔐 Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+# --- Google Gemini ---
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# --- AWS ---
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your_access_key_id        # optional on EC2 if an IAM role is attached
+AWS_SECRET_ACCESS_KEY=your_secret_access_key # optional on EC2 if an IAM role is attached
+```
+
+> 🔒 **Never commit your `.env` file.** Make sure it is listed in `.gitignore`. On EC2, prefer attaching an **IAM role** to the instance instead of storing static AWS credentials.
+
+---
+
+## 📄 License & Contributing
+
+### Contributing
+
+Contributions are welcome! To get started:
+
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
+3. **Commit** your changes: `git commit -m "feat: add amazing feature"`
+4. **Push** to your branch: `git push origin feature/amazing-feature`
+5. **Open** a Pull Request
+
+Please open an issue first to discuss any major changes.
+
+### License
+
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+
+```text
+MIT License
+
+Copyright (c) 2026 CivicGuard Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+```
+
+---
+
+<div align="center">
+
+**Built with ❤️ for safer, smarter cities.**
+
+⭐ Star this repo if you find it useful!
+
+</div>
