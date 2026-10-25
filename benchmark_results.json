@@ -1,7 +1,7 @@
 {
     "architecture": "AWS Graviton3 (c7g.xlarge - Arm64)",
     "opencv_version": "4.13.0",
-    "average_latency_ms": 47.386,
-    "throughput_fps": 21.1,
+    "average_latency_ms": 47.319,
+    "throughput_fps": 21.13,
     "average_cpu_percent": 94.79
 }
