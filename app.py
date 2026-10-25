@@ -121,6 +121,8 @@ with col_left:
 with col_right:
     st.subheader("Agent Activity & Decision Trace")
     log_placeholder = st.empty()
+    # Initialize placeholder immediately so it never shows blank loading text
+    log_placeholder.json(st.session_state.agent_trace)
 
 # Real-Time Processing Execution Loop
 if start_stream:
@@ -130,35 +132,23 @@ if start_stream:
     if input_mode == "Upload Video/Image" and uploaded_file is not None:
         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
         
-        # Single Image Upload Path
         if uploaded_file.type.startswith("image"):
             img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-            
             if img.shape[1] > 360:
                 img = cv2.resize(img, (360, int(360 * img.shape[0] / img.shape[1])), interpolation=cv2.INTER_NEAREST)
                 
-            # Engine processing call
             _, processed_img, metrics = st.session_state.engine.process_frame(img)
-            engine_latency_ms = metrics.get("latency_ms", 0.0)
+            
+            # Synchronous evaluation for immediate first-frame trace population
+            st.session_state.agent_trace = st.session_state.agent.evaluate_and_act(metrics, st.session_state.engine, is_autonomous=agent_control)
             
             combined = create_side_by_side_stream(img, processed_img)
             _, buffer = cv2.imencode('.jpg', combined, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
             
             frame_placeholder.image(buffer.tobytes(), use_container_width=True)
-            render_kpis(kpi_container_placeholder, metrics, engine_latency_ms)
-            
-            # Run Agent asynchronously in background thread
-            if not st.session_state.agent_busy:
-                st.session_state.agent_busy = True
-                threading.Thread(
-                    target=run_agent_async, 
-                    args=(metrics, st.session_state.engine, agent_control), 
-                    daemon=True
-                ).start()
-                
+            render_kpis(kpi_container_placeholder, metrics, metrics.get("latency_ms", 30.0))
             log_placeholder.json(st.session_state.agent_trace)
 
-        # Video Stream Upload Path
         else:
             tfile = tempfile.NamedTemporaryFile(delete=False)
             tfile.write(file_bytes)
@@ -167,6 +157,7 @@ if start_stream:
             target_fps = 30.0
             frame_time_target = 1.0 / target_fps
             
+            first_frame_eval = True
             while cap.isOpened() and start_stream:
                 start_t = time.perf_counter()
                 ret, frame = cap.read()
@@ -180,7 +171,10 @@ if start_stream:
                 
                 _, processed_frame, metrics = st.session_state.engine.process_frame(frame)
                 
-                if not st.session_state.agent_busy:
+                if first_frame_eval:
+                    st.session_state.agent_trace = st.session_state.agent.evaluate_and_act(metrics, st.session_state.engine, is_autonomous=agent_control)
+                    first_frame_eval = False
+                elif not st.session_state.agent_busy:
                     st.session_state.agent_busy = True
                     threading.Thread(
                         target=run_agent_async, 
@@ -195,16 +189,10 @@ if start_stream:
                 frame_placeholder.image(buffer.tobytes(), use_container_width=True)
                 
                 processing_time = time.perf_counter() - start_t
-                loop_ms = processing_time * 1000.0
-                render_kpis(kpi_container_placeholder, metrics, loop_ms)
+                render_kpis(kpi_container_placeholder, metrics, processing_time * 1000.0)
 
                 if processing_time < frame_time_target:
                     time.sleep(frame_time_target - processing_time)
-                else:
-                    frames_to_skip = int(processing_time / frame_time_target)
-                    for _ in range(min(frames_to_skip, 2)):
-                        cap.grab()
-            
             cap.release()
 
     # ------------------------------------------------------------------
@@ -212,6 +200,7 @@ if start_stream:
     # ------------------------------------------------------------------
     elif input_mode == "Synthetic Structural Pattern":
         angle = 0.0
+        first_frame_eval = True
 
         while start_stream:
             start_t = time.perf_counter()
@@ -226,7 +215,10 @@ if start_stream:
             
             _, processed_frame, metrics = st.session_state.engine.process_frame(synthetic_frame)
             
-            if not st.session_state.agent_busy:
+            if first_frame_eval:
+                st.session_state.agent_trace = st.session_state.agent.evaluate_and_act(metrics, st.session_state.engine, is_autonomous=agent_control)
+                first_frame_eval = False
+            elif not st.session_state.agent_busy:
                 st.session_state.agent_busy = True
                 threading.Thread(
                     target=run_agent_async, 
@@ -240,8 +232,7 @@ if start_stream:
             _, buffer = cv2.imencode('.jpg', combined, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
             frame_placeholder.image(buffer.tobytes(), use_container_width=True)
 
-            loop_ms = (time.perf_counter() - start_t) * 1000.0
-            render_kpis(kpi_container_placeholder, metrics, loop_ms)
+            render_kpis(kpi_container_placeholder, metrics, (time.perf_counter() - start_t) * 1000.0)
             time.sleep(0.005)
 
     # ------------------------------------------------------------------
@@ -252,6 +243,7 @@ if start_stream:
         if not cap.isOpened():
             st.error("No camera hardware detected. Switch to 'Synthetic Structural Pattern' or 'Upload Video/Image'.")
         else:
+            first_frame_eval = True
             while cap.isOpened() and start_stream:
                 start_t = time.perf_counter()
                 ret, frame = cap.read()
@@ -264,7 +256,10 @@ if start_stream:
                 
                 _, processed_frame, metrics = st.session_state.engine.process_frame(frame)
                 
-                if not st.session_state.agent_busy:
+                if first_frame_eval:
+                    st.session_state.agent_trace = st.session_state.agent.evaluate_and_act(metrics, st.session_state.engine, is_autonomous=agent_control)
+                    first_frame_eval = False
+                elif not st.session_state.agent_busy:
                     st.session_state.agent_busy = True
                     threading.Thread(
                         target=run_agent_async, 
@@ -278,6 +273,5 @@ if start_stream:
                 _, buffer = cv2.imencode('.jpg', combined, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
                 frame_placeholder.image(buffer.tobytes(), use_container_width=True)
 
-                loop_ms = (time.perf_counter() - start_t) * 1000.0
-                render_kpis(kpi_container_placeholder, metrics, loop_ms)
+                render_kpis(kpi_container_placeholder, metrics, (time.perf_counter() - start_t) * 1000.0)
             cap.release()
