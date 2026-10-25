@@ -48,14 +48,20 @@ if "agent_trace" not in st.session_state:
     st.session_state.agent_trace = {"status": "Agent initialized. Awaiting stream data..."}
 if "agent_busy" not in st.session_state:
     st.session_state.agent_busy = False
-if "prev_agent_trace" not in st.session_state:
-    st.session_state.prev_agent_trace = None
 
 def run_agent_async(metrics, engine, is_autonomous):
     """Background worker thread executing LLM/MCP decision logic non-blockingly."""
     try:
         trace = st.session_state.agent.evaluate_and_act(metrics, engine, is_autonomous=is_autonomous)
+        if isinstance(trace, dict):
+            trace["ui_refresh_nonce"] = time.time()
         st.session_state.agent_trace = trace
+    except Exception as e:
+        st.session_state.agent_trace = {
+            "status": "ERROR",
+            "error": str(e),
+            "timestamp": time.strftime("%H:%M:%S")
+        }
     finally:
         st.session_state.agent_busy = False
 
@@ -150,9 +156,7 @@ if start_stream:
                     daemon=True
                 ).start()
                 
-            if st.session_state.agent_trace != st.session_state.prev_agent_trace:
-                log_placeholder.json(st.session_state.agent_trace)
-                st.session_state.prev_agent_trace = st.session_state.agent_trace
+            log_placeholder.json(st.session_state.agent_trace)
 
         # Video Stream Upload Path
         else:
@@ -162,9 +166,6 @@ if start_stream:
             
             target_fps = 30.0
             frame_time_target = 1.0 / target_fps
-
-            log_placeholder.json(st.session_state.agent_trace)
-            st.session_state.prev_agent_trace = st.session_state.agent_trace
             
             while cap.isOpened() and start_stream:
                 start_t = time.perf_counter()
@@ -187,9 +188,7 @@ if start_stream:
                         daemon=True
                     ).start()
 
-                if st.session_state.agent_trace != st.session_state.prev_agent_trace:
-                    log_placeholder.json(st.session_state.agent_trace)
-                    st.session_state.prev_agent_trace = st.session_state.agent_trace
+                log_placeholder.json(st.session_state.agent_trace)
 
                 combined = create_side_by_side_stream(frame, processed_frame)
                 _, buffer = cv2.imencode('.jpg', combined, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
@@ -213,8 +212,6 @@ if start_stream:
     # ------------------------------------------------------------------
     elif input_mode == "Synthetic Structural Pattern":
         angle = 0.0
-        log_placeholder.json(st.session_state.agent_trace)
-        st.session_state.prev_agent_trace = st.session_state.agent_trace
 
         while start_stream:
             start_t = time.perf_counter()
@@ -237,9 +234,7 @@ if start_stream:
                     daemon=True
                 ).start()
 
-            if st.session_state.agent_trace != st.session_state.prev_agent_trace:
-                log_placeholder.json(st.session_state.agent_trace)
-                st.session_state.prev_agent_trace = st.session_state.agent_trace
+            log_placeholder.json(st.session_state.agent_trace)
 
             combined = create_side_by_side_stream(synthetic_frame, processed_frame)
             _, buffer = cv2.imencode('.jpg', combined, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
@@ -257,9 +252,6 @@ if start_stream:
         if not cap.isOpened():
             st.error("No camera hardware detected. Switch to 'Synthetic Structural Pattern' or 'Upload Video/Image'.")
         else:
-            log_placeholder.json(st.session_state.agent_trace)
-            st.session_state.prev_agent_trace = st.session_state.agent_trace
-
             while cap.isOpened() and start_stream:
                 start_t = time.perf_counter()
                 ret, frame = cap.read()
@@ -280,9 +272,7 @@ if start_stream:
                         daemon=True
                     ).start()
 
-                if st.session_state.agent_trace != st.session_state.prev_agent_trace:
-                    log_placeholder.json(st.session_state.agent_trace)
-                    st.session_state.prev_agent_trace = st.session_state.agent_trace
+                log_placeholder.json(st.session_state.agent_trace)
 
                 combined = create_side_by_side_stream(frame, processed_frame)
                 _, buffer = cv2.imencode('.jpg', combined, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
