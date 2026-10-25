@@ -1,0 +1,6 @@
+opencv-python
+numpy
+streamlit
+mcp
+boto3
+matplotlib
