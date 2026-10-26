@@ -1,0 +1,68 @@
+[
+  {
+    "event_type": "agentic_trace",
+    "trace_id": "cg_insp_9a3b7c",
+    "timestamp": "2026-10-26T14:35:10Z",
+    "pipeline_stage": "perception",
+    "compute_architecture": "AWS_Graviton3_ARM64_COOL_v1",
+    "perception_data": {
+      "raw_frame_id": "feed_pothole_003.jpg",
+      "opencv_analysis": {
+        "spatial_roi_count": 2,
+        "primary_hazard_roi_coords": [310, 450, 680, 920],
+        "structural_gradient_analysis": "high_contrast_localized_contour",
+        "anomaly_density_index": 0.762
+      }
+    }
+  },
+  {
+    "event_type": "decision_engine",
+    "trace_id": "cg_insp_9a3b7c",
+    "orchestrator": "google.gemini.2.5.flash",
+    "decision_logic": {
+      "input_raw_frame": "feed_pothole_003.jpg",
+      "input_processed_roi": "feed_pothole_003_roi_01.jpg",
+      "severity_score": 0.911,
+      "risk_classification": "CRITICAL_HAZARD",
+      "diagnostic_summary": "Large, deep pavement pothole on primary driving lane, potentially causing severe vehicular structural damage or dynamic control loss.",
+      "critical_path_trigger": "severity > 0.85"
+    }
+  },
+  {
+    "event_type": "action_execution",
+    "trace_id": "cg_insp_9a3b7c",
+    "framework": "MCP_Orchestrator",
+    "dynamic_tool_adjustments": [
+      {
+        "tool_call": "opencv.adjust_vision_parameters",
+        "parameters": {
+          "adaptive_canny_tightness": 0.95,
+          "bilateral_filter_sigma_space": 1.5,
+          "zoom_level": "2.0x"
+        },
+        "rationale": "Severity > 0.85 requires high-resolution second-pass feature confirmation of structural integrity from localized visual matrix.",
+        "status": "success"
+      }
+    ]
+  },
+  {
+    "event_type": "action_execution",
+    "trace_id": "cg_insp_9a3b7c",
+    "automated_response": {
+      "response_type": "human_interlock_dispatch",
+      "tool_call": "mcp_dispatch.issue_urgent_alert",
+      "action_details": {
+        "hazard_type": "critical_pothole",
+        "location": [38.8977, -77.0365],
+        "severity_score": 0.911,
+        "timestamp": "2026-10-26T14:35:12Z",
+        "alert_type": "HUMAN_REVIEW_REQUIRED"
+      },
+      "dispatch_interlock": {
+        "status": "triggered",
+        "rationale": "Critical Severity (0.911 > 0.85) triggered human-in-the-loop dispatch safety interlock.",
+        "alert_notification_sent_to": "supervisor_ops_1"
+      }
+    }
+  }
+]
